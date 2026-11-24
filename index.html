@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>别只信那一下</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; background: #f6f2ea; color: #2a2622; line-height: 1.6; }
+  .wrap { max-width: 1000px; margin: 0 auto; padding: 20px 14px 40px; }
+  h1 { font-size: 26px; letter-spacing: 1px; }
+  .lead { color: #6a6157; font-size: 14px; margin: 4px 0 14px; }
+  .card { background: #fffdf8; border-radius: 10px; padding: 14px; border: 1px solid #e3dacb; margin-bottom: 14px; min-width: 0; }
+  .card h2 { font-size: 15px; font-weight: 600; margin-bottom: 8px; overflow-wrap: anywhere; }
+  label { font-size: 12px; color: #6a6157; display: block; overflow-wrap: anywhere; }
+  input, textarea, select { font: inherit; font-size: 14px; padding: 6px 8px; border: 1px solid #cbbfad; border-radius: 6px; width: 100%; min-width: 0; background: #fff; font-variant-numeric: tabular-nums; }
+  textarea { resize: vertical; min-height: 150px; line-height: 1.55; font-family: ui-monospace, Menlo, "PingFang SC", monospace; }
+  .g4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+  .row { margin-top: 10px; }
+  .bad { border-color: #b3412f !important; background: #fff0ec !important; }
+  button { font: inherit; font-size: 13px; padding: 6px 11px; border-radius: 6px; border: 1px solid #7a3b2e; background: #7a3b2e; color: #fff; cursor: pointer; }
+  button.ghost { background: #fff; color: #7a3b2e; }
+  .presets, .dl { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+  .err { display: none; background: #fff0ec; border: 1px solid #ecb7aa; color: #8e2b1c; border-radius: 8px; padding: 10px 12px; margin-bottom: 14px; overflow-wrap: anywhere; }
+  .muted { color: #857a6d; font-size: 12px; }
+  /* 结论：那一下 vs 平均 */
+  .vs { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 12px; align-items: stretch; }
+  .vs > div { border-radius: 10px; padding: 12px; min-width: 0; }
+  .one { background: #f3ece2; border: 1px dashed #b9a58c; }
+  .avg { background: #fff; border: 2px solid #7a3b2e; }
+  .vs .k { font-size: 12px; color: #6a6157; }
+  .vs .v { font-size: 34px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.2; overflow-wrap: anywhere; }
+  .vs .w { font-size: 13px; overflow-wrap: anywhere; }
+  .vs .mid { align-self: center; font-size: 13px; color: #857a6d; text-align: center; }
+  .up { color: #b3412f; } .down { color: #2f6b4f; }
+  .stamp { display: inline-block; border: 3px solid #2f6b4f; color: #2f6b4f; border-radius: 8px; padding: 2px 10px; font-weight: 800; font-size: 17px; transform: rotate(-3deg); white-space: nowrap; margin-right: 8px; }
+  .stamp.over { border-color: #b3412f; color: #b3412f; } .stamp.near, .stamp.few { border-color: #a5741d; color: #a5741d; }
+  #summary { font-size: 17px; font-weight: 700; overflow-wrap: anywhere; margin-top: 12px; }
+  #facts { margin: 8px 0 0 18px; font-size: 14px; } #facts li { margin: 3px 0; overflow-wrap: anywhere; }
+  /* 点图 */
+  #plot { width: 100%; height: auto; display: block; }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: #6a6157; margin-top: 6px; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; vertical-align: 0; margin-right: 4px; }
+  /* 记录本格子 */
+  .book { display: grid; grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); gap: 8px; }
+  .day { border: 1px solid #e3dacb; border-radius: 8px; padding: 6px 8px; background: #fff; min-width: 0; font-variant-numeric: tabular-nums; }
+  .day.dropped { background: repeating-linear-gradient(135deg, #f6f2ea, #f6f2ea 6px, #fff 6px, #fff 12px); color: #9a8f82; }
+  .day .dl0 { font-size: 13px; font-weight: 700; display: flex; justify-content: space-between; gap: 4px; }
+  .day .dl0 em { font-style: normal; font-size: 11px; font-weight: 400; }
+  .ses { display: flex; justify-content: space-between; gap: 4px; font-size: 13px; margin-top: 2px; }
+  .ses b.up { color: #b3412f; } .ses b.down { color: #2f6b4f; } .day.dropped .ses b { color: #9a8f82; text-decoration: line-through; }
+  .ses small { color: #857a6d; white-space: nowrap; font-size: 11px; } .ses b { white-space: nowrap; }
+  .chk { list-style: none; font-size: 14px; } .chk li { padding: 3px 0; overflow-wrap: anywhere; } .chk li::before { content: "○ "; color: #a5741d; } .chk li.ok::before { content: "● "; color: #2f6b4f; }
+  #sugs { display: grid; gap: 8px; }
+  .sug { display: flex; gap: 10px; align-items: center; justify-content: space-between; border: 1px solid #e3dacb; border-radius: 6px; padding: 8px 10px; }
+  .sug span { min-width: 0; overflow-wrap: anywhere; font-size: 14px; } .sug button { flex: none; }
+  .two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
+  .how { font-size: 13px; } .how p { margin: 6px 0; }
+  @media (max-width: 760px) { .two { grid-template-columns: minmax(0, 1fr); } .g4 { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+  @media (max-width: 520px) { .vs { grid-template-columns: minmax(0, 1fr); } .vs .mid { display: none; } .vs .v { font-size: 28px; } .sug { flex-direction: column; align-items: stretch; } #summary { font-size: 16px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>别只信那一下</h1>
+  <p class="lead">家里自己量血压，第一遍常常最高，第一天常常偏高。把这几天记下的数贴进来，这里按「每次量两遍取平均、第一天可以不算、看几天的平均」把账算清：平均落在参考线哪一边、有多稳，单看最高那一下会不会看错。只是把你记的数算清楚，不是诊断；参考线以医生说的为准。默认例子是虚构的。</p>
+
+  <div class="card">
+    <h2>这几天记的数</h2>
+    <label for="data">每行：日期 早/晚 高压/低压（可加 /心率），一次量几遍就往后接几个，比如「11-18 早 138/88 135/86」</label>
+    <textarea id="data" maxlength="40000" spellcheck="false"></textarea>
+    <div class="g4 row">
+      <div><label for="line">参考线（高压/低压，到线就算）</label><input id="line" maxlength="12"></div>
+      <div><label for="dropDay1">第一天</label><select id="dropDay1"><option value="1">不作数</option><option value="0">也算</option></select></div>
+      <div><label for="dropFirst">每次的第一遍</label><select id="dropFirst"><option value="0">也算</option><option value="1">不算（量了两遍以上时）</option></select></div>
+      <div><label for="minDays">至少几天才下结论</label><input id="minDays" maxlength="3" inputmode="numeric"></div>
+    </div>
+    <div class="presets" id="presets"></div>
+  </div>
+
+  <div class="err" id="error"></div>
+  <div id="out">
+    <div class="card">
+      <div class="vs">
+        <div class="one"><div class="k">只看最高那一下</div><div class="v" id="oneV"></div><div class="w" id="oneW"></div></div>
+        <div class="mid">对比</div>
+        <div class="avg"><div class="k">这几天的平均</div><div class="v" id="avgV"></div><div class="w" id="avgW"></div></div>
+      </div>
+      <div id="summary"><span class="stamp" id="stamp"></span><span id="sumTxt"></span></div>
+      <ul id="facts"></ul>
+    </div>
+    <div class="card">
+      <h2>每一遍都画出来（横线 = 参考线）</h2>
+      <canvas id="plot" width="960" height="560"></canvas>
+      <div class="legend"><span><i style="background:#c9b8a3"></i>单遍读数</span><span><i style="background:#7a3b2e"></i>这次的平均（算进去的）</span><span><i style="background:#fff;border:2px solid #9a8f82"></i>不算的</span><span>上半是高压、下半是低压</span></div>
+    </div>
+    <div class="card">
+      <h2>记录本（红 = 这次平均到了线，绿 = 没到；斜纹 = 不作数）</h2>
+      <div class="book" id="book"></div>
+    </div>
+    <div class="two">
+      <div class="card">
+        <h2>这份记录够不够</h2>
+        <ul class="chk" id="checks"></ul>
+      </div>
+      <div class="card" id="sugCard">
+        <h2>换个算法（点一下代回重算）</h2>
+        <div id="sugs"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>带走结果</h2>
+    <div class="dl">
+      <button id="dlCSV">CSV 每一遍</button><button id="dlMD">Markdown 小结</button><button id="dlPNG">结果卡 PNG</button><button id="dlJSON" class="ghost">JSON 备份</button>
+      <button id="reset" class="ghost">恢复默认</button>
+    </div>
+    <p class="muted" style="margin-top:6px">输入自动保存在这台设备的浏览器里，刷新还在；不上传。</p>
+  </div>
+
+  <div class="card how">
+    <h2>怎么算的</h2>
+    <p><b>每一次</b>：同一天早上（或晚上）量的几遍先取平均。选了「第一遍不算」时，量了两遍以上的那次去掉第一遍再平均；只量一遍的照算。</p>
+    <p><b>第一天</b>：选了「不作数」时，按日期最早的那天整天不算。刚开始自己量，人往往紧张、手法也不熟。</p>
+    <p><b>平均</b>：算进去的每一次权重一样（不会因为哪次多量了几遍就更重），高压、低压分开平均。早上、晚上也各算一份。</p>
+    <p><b>到线</b>：平均的高压到了参考线的高压，或者低压到了低压，就算在线上（两个有一个到就算）。参考线默认 135/85，这是不少指南给「家里自己量」用的数；有的地方用 130/80，你也可以按医生说的改。</p>
+    <p><b>稳不稳</b>：把每次的平均当成一份独立的样本，平均 ± t 值 × 标准差 ÷ √次数，叫粗估区间（3 次以上才给）。区间整个在一边叫「稳」，跨着线叫「贴着线」。同一天的早晚其实互相有关，所以它只是粗估。天数不够你定的门槛时直接写「天数不够」。</p>
+    <p class="muted">这里不诊断高血压，也不建议吃不吃药、换不换药。心律不齐（比如房颤）时电子血压计的读数可能不准；孕期、儿童另有标准。读数很高，或者头痛、胸闷、看东西模糊，别等平均，直接找医生。默认例子是虚构的。</p>
+  </div>
+</div>
+
+  <script>
+/* 别只信那一下 · 计算核心
+ * 输入：家里自己量的血压记录（每行：日期 早/晚 高压/低压[/心率] …，一行可写好几遍），参考线（默认 135/85，可改），
+ *       第一天算不算、每次的第一遍算不算、至少几天才下结论。
+ * 1. 每一次（某天的早上或晚上）先把这次量的几遍取平均；勾了「第一遍不算」时，量了 2 遍及以上的那次去掉第一遍。
+ * 2. 勾了「第一天不作数」时，按日期排序后最早那天整天不算。
+ * 3. 平均 = 剩下各次的平均再取平均（每次权重一样，不因哪次多量了几遍就更重）。早上、晚上分开也算一份。
+ * 4. 粗估区间：把每次的平均当成互相独立的样本，平均 ± t(0.975, n−1)·标准差/√n（n ≥ 3 次才给）。
+ *    同一天早晚其实有关联，这只是粗估。
+ * 5. 判断：平均的高压 ≥ 线 或 低压 ≥ 线 → 在线上；区间整个在一边 → 稳；区间跨线 → 贴线；天数不够 → 先别下结论。
+ * 6. 「那一下」：所有单遍读数里的第一遍、最高的一遍，单看它会怎么判，以及单遍里有几遍到了线。
+ * 不做：诊断高血压、建议吃不吃药或换药；不处理心律不齐（如房颤）时电子血压计读数不准、孕期、儿童。默认例子是虚构的。 */
+(function (root) {
+  'use strict';
+  function Bad(message, field) { const e = new Error(message); e.field = field; return e; }
+  const KEYS = ['data', 'line', 'dropDay1', 'dropFirst', 'minDays'];
+  const MAX_LINES = 400, MAX_READS = 2000;
+
+  /* ── 数值工具 ── */
+  const LG = [0.99999999999980993, 676.5203681218851, -1259.1392167224028, 771.32342877765313, -176.61502916214059, 12.507343278686905, -0.13857109526572012, 9.9843695780195716e-6, 1.5056327351493116e-7];
+  function lnGamma(z) {
+    if (z < 0.5) return Math.log(Math.PI / Math.sin(Math.PI * z)) - lnGamma(1 - z);
+    z -= 1; let x = LG[0]; for (let i = 1; i < 9; i++) x += LG[i] / (z + i);
+    const t = z + 7.5; return 0.5 * Math.log(2 * Math.PI) + (z + 0.5) * Math.log(t) - t + Math.log(x);
+  }
+  function betacf(a, b, x) {
+    const FP = 1e-300; let qab = a + b, qap = a + 1, qam = a - 1, c = 1, d = 1 - qab * x / qap;
+    if (Math.abs(d) < FP) d = FP; d = 1 / d; let h = d;
+    for (let m = 1; m <= 300; m++) {
+      const m2 = 2 * m; let aa = m * (b - m) * x / ((qam + m2) * (a + m2));
+      d = 1 + aa * d; if (Math.abs(d) < FP) d = FP; c = 1 + aa / c; if (Math.abs(c) < FP) c = FP; d = 1 / d; h *= d * c;
+      aa = -(a + m) * (qab + m) * x / ((a + m2) * (qap + m2));
+      d = 1 + aa * d; if (Math.abs(d) < FP) d = FP; c = 1 + aa / c; if (Math.abs(c) < FP) c = FP; d = 1 / d;
+      const del = d * c; h *= del; if (Math.abs(del - 1) < 1e-15) break;
+    }
+    return h;
+  }
+  /* 正则化不完全 β：I_x(a,b) */
+  function betaI(a, b, x) {
+    if (x <= 0) return 0; if (x >= 1) return 1;
+    const bt = Math.exp(lnGamma(a + b) - lnGamma(a) - lnGamma(b) + a * Math.log(x) + b * Math.log(1 - x));
+    return x < (a + 1) / (a + b + 2) ? bt * betacf(a, b, x) / a : 1 - bt * betacf(b, a, 1 - x) / b;
+  }
+  /* t 分布 CDF 与分位数 */
+  function tCdf(t, df) { const x = df / (df + t * t), q = 0.5 * betaI(df / 2, 0.5, x); return t >= 0 ? 1 - q : q; }
+  function tInv(p, df) {
+    let lo = 0, hi = 1; while (tCdf(hi, df) < p) hi *= 2;
+    for (let i = 0; i < 200; i++) { const m = (lo + hi) / 2; if (tCdf(m, df) < p) lo = m; else hi = m; }
+    return (lo + hi) / 2;
+  }
+  const mean = (a) => a.reduce((s, x) => s + x, 0) / a.length;
+  function sd(a) { if (a.length < 2) return 0; const m = mean(a); return Math.sqrt(a.reduce((s, x) => s + (x - m) * (x - m), 0) / (a.length - 1)); }
+  const r1 = (x) => Math.round(x * 10) / 10;
+  function fmt(x, d) { if (x == null || !isFinite(x)) return '—'; const s = (Math.round(x * Math.pow(10, d)) / Math.pow(10, d)).toFixed(d); return d > 0 ? s.replace(/\.?0+$/, '') : s; }
+  const f1 = (x) => (x == null ? '—' : r1(x).toFixed(1));
+  const bp = (s, d) => f1(s) + '/' + f1(d);
+  const bpi = (s, d) => s + '/' + d;
+
+  /* ── 解析 ── */
+  const tidy = (s) => String(s).replace(/[，,；;、\t　|]/g, ' ').replace(/[／]/g, '/').replace(/[：]/g, ':').replace(/ +/g, ' ').trim();
+  const AM = /^(早|早上|早晨|晨|上午|起床|am|AM)$/, PM = /^(晚|晚上|下午|夜|夜里|睡前|pm|PM)$/;
+  function parseDate(tok) {
+    let m = /^(\d{4})[-./年](\d{1,2})[-./月](\d{1,2})日?$/.exec(tok);
+    if (m) return { y: +m[1], m: +m[2], d: +m[3], hasY: true };
+    m = /^(\d{1,2})[-./月](\d{1,2})日?$/.exec(tok);
+    if (m) return { y: null, m: +m[1], d: +m[2], hasY: false };
+    return null;
+  }
+  const DIM = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  function validDate(o) {
+    if (o.m < 1 || o.m > 12 || o.d < 1) return false;
+    if (o.hasY) { const dt = new Date(Date.UTC(o.y, o.m - 1, o.d)); return dt.getUTCMonth() === o.m - 1 && o.y >= 1900 && o.y <= 2100; }
+    return o.d <= DIM[o.m - 1];
+  }
+  const pad = (n) => String(n).padStart(2, '0');
+  function parseData(text) {
+    const lines = String(text).split(/\r?\n/);
+    const reads = [];
+    let n = 0;
+    lines.forEach((raw, li) => {
+      const line = tidy(raw.replace(/#.*$/, ''));
+      if (!line) return;
+      n++; if (n > MAX_LINES) throw Bad('最多 ' + MAX_LINES + ' 行记录', 'data');
+      const t = line.split(' ');
+      const where = '第 ' + (li + 1) + ' 行';
+      const dt = parseDate(t[0]);
+      if (!dt) throw Bad(where + '开头「' + t[0].slice(0, 20) + '」不是日期，写成 11-18 或 2026-11-18', 'data');
+      if (!validDate(dt)) throw Bad(where + '日期「' + t[0] + '」不存在', 'data');
+      if (t.length < 2 || !(AM.test(t[1]) || PM.test(t[1]))) throw Bad(where + '日期后面要写「早」或「晚」', 'data');
+      const ses = AM.test(t[1]) ? 'am' : 'pm';
+      if (t.length < 3) throw Bad(where + '没有读数，写成 高压/低压，比如 132/84', 'data');
+      t.slice(2).forEach((tok, j) => {
+        const m = /^(\d{2,3})\/(\d{2,3})(?:\/(\d{2,3}))?$/.exec(tok);
+        if (!m) throw Bad(where + '「' + tok.slice(0, 20) + '」看不懂，读数写成 高压/低压 或 高压/低压/心率', 'data');
+        const s = +m[1], d = +m[2], hr = m[3] == null ? null : +m[3];
+        if (s < 60 || s > 260) throw Bad(where + '高压 ' + s + ' 不在 60–260 之间，先确认是不是记错了', 'data');
+        if (d < 30 || d > 160) throw Bad(where + '低压 ' + d + ' 不在 30–160 之间，先确认是不是记错了', 'data');
+        if (s <= d) throw Bad(where + '「' + tok + '」高压要比低压大，是不是写反了', 'data');
+        if (hr != null && (hr < 30 || hr > 220)) throw Bad(where + '心率 ' + hr + ' 不在 30–220 之间', 'data');
+        reads.push({ dt, ses, s, d, hr, line: li + 1, order: reads.length });
+      });
+      if (reads.length > MAX_READS) throw Bad('读数最多 ' + MAX_READS + ' 遍', 'data');
+    });
+    if (!reads.length) throw Bad('还没有记录。每行写：日期 早/晚 高压/低压，比如「11-18 早 138/88 135/86」', 'data');
+    const withY = reads.filter((r) => r.dt.hasY).length;
+    if (withY && withY < reads.length) throw Bad('日期要么都写年份、要么都不写', 'data');
+    /* 没写年份：按月日排；跨度超过半年视为跨年（1–6 月算下一年） */
+    if (!withY) {
+      const doy = (o) => o.m * 31 + o.d;
+      const span = Math.max(...reads.map((r) => doy(r.dt))) - Math.min(...reads.map((r) => doy(r.dt)));
+      reads.forEach((r) => { r.dt.y = span > 186 && r.dt.m <= 6 ? 2001 : 2000; });
+    }
+    reads.forEach((r) => { r.key = r.dt.y * 10000 + r.dt.m * 100 + r.dt.d; r.label = (withY ? r.dt.y + '-' : '') + pad(r.dt.m) + '-' + pad(r.dt.d); });
+    return reads;
+  }
+  function parseLine(s) {
+    const m = /^(\d{2,3})\s*\/\s*(\d{2,3})$/.exec(tidy(s));
+    if (!m) throw Bad('参考线写成 高压/低压，比如 135/85', 'line');
+    const S = +m[1], D = +m[2];
+    if (S < 90 || S > 200 || D < 50 || D > 130 || S <= D) throw Bad('参考线高压在 90–200、低压在 50–130，且高压比低压大', 'line');
+    return { s: S, d: D };
+  }
+  function flag(v, name) {
+    const t = String(v).trim();
+    if (t === '1' || t === 'true') return true;
+    if (t === '0' || t === 'false' || t === '') return false;
+    throw Bad(name + '只能是 1 或 0', name === '第一天不作数' ? 'dropDay1' : 'dropFirst');
+  }
+  function parse(inp) {
+    const reads = parseData(inp.data);
+    const line = parseLine(inp.line);
+    const dropDay1 = flag(inp.dropDay1, '第一天不作数'), dropFirst = flag(inp.dropFirst, '第一遍不算');
+    const md = String(inp.minDays).trim();
+    if (!/^\d+$/.test(md) || +md < 1 || +md > 30) throw Bad('至少几天：写 1 到 30 的整数', 'minDays');
+    return { reads, line, dropDay1, dropFirst, minDays: +md };
+  }
+
+  /* ── 计算 ── */
+  function above(s, d, L) { return s >= L.s || d >= L.d; }
+  function summarizeSessions(ss, L) {
+    const n = ss.length;
+    if (!n) return null;
+    const S = ss.map((x) => x.s), D = ss.map((x) => x.d), H = ss.filter((x) => x.hr != null).map((x) => x.hr);
+    const o = { n, s: mean(S), d: mean(D), hr: H.length ? mean(H) : null, sdS: sd(S), sdD: sd(D), ci: null };
+    if (n >= 3) {
+      const t = tInv(0.975, n - 1), es = t * o.sdS / Math.sqrt(n), ed = t * o.sdD / Math.sqrt(n);
+      o.t = t; o.ci = { s: [o.s - es, o.s + es], d: [o.d - ed, o.d + ed] };
+    }
+    o.above = above(r1(o.s), r1(o.d), L);
+    return o;
+  }
+  function verdictOf(all, L, keptDays, minDays) {
+    if (keptDays < minDays) return 'few';
+    if (!all.ci) return 'near';
+    if (all.ci.s[0] >= L.s || all.ci.d[0] >= L.d) return 'over';
+    if (all.ci.s[1] < L.s && all.ci.d[1] < L.d) return 'under';
+    return 'near';
+  }
+  const STAMP = { over: '稳在线上', under: '稳在线下', near: '贴着线', few: '天数不够' };
+
+  function core(P) {
+    const L = P.line;
+    const keys = [...new Set(P.reads.map((r) => r.key))].sort((a, b) => a - b);
+    const days = keys.map((k, i) => {
+      const rs = P.reads.filter((r) => r.key === k);
+      const day = { key: k, label: rs[0].label, dropped: P.dropDay1 && i === 0 && keys.length > 0 };
+      ['am', 'pm'].forEach((ses) => {
+        const all = rs.filter((r) => r.ses === ses);
+        if (!all.length) { day[ses] = null; return; }
+        const used = P.dropFirst && all.length >= 2 ? all.slice(1) : all;
+        const H = used.filter((r) => r.hr != null).map((r) => r.hr);
+        day[ses] = { reads: all, used, s: mean(used.map((r) => r.s)), d: mean(used.map((r) => r.d)), hr: H.length ? mean(H) : null,
+          firstDropped: used.length < all.length, single: all.length === 1 };
+      });
+      return day;
+    });
+    if (P.dropDay1 && days.length < 2) throw Bad('只记了一天，再去掉第一天就没有数了；先取消「第一天不作数」或再多量几天', 'dropDay1');
+    const kept = days.filter((d) => !d.dropped);
+    const sessOf = (ds, ses) => { const o = []; ds.forEach((d) => (ses ? [ses] : ['am', 'pm']).forEach((k) => { if (d[k]) o.push(Object.assign({ date: d.label, ses: k }, d[k])); })); return o; };
+    const sess = sessOf(kept);
+    const all = summarizeSessions(sess, L);
+    const am = summarizeSessions(sessOf(kept, 'am'), L), pm = summarizeSessions(sessOf(kept, 'pm'), L);
+    const verdict = verdictOf(all, L, kept.length, P.minDays);
+    /* 那一下：所有单遍读数（含不算的） */
+    const reads = P.reads.slice().sort((a, b) => a.key - b.key || (a.ses === b.ses ? a.order - b.order : a.ses === 'am' ? -1 : 1));
+    const first = reads[0];
+    let hi = reads[0]; reads.forEach((r) => { if (r.s > hi.s || (r.s === hi.s && r.d > hi.d)) hi = r; });
+    let lo = reads[0]; reads.forEach((r) => { if (r.s < lo.s || (r.s === lo.s && r.d < lo.d)) lo = r; });
+    const overReads = reads.filter((r) => above(r.s, r.d, L)).length;
+    const overSess = sess.filter((x) => above(r1(x.s), r1(x.d), L)).length;
+    /* 算上第一天会怎样（只在勾了不作数时给对照） */
+    let withDay1 = null;
+    if (P.dropDay1) withDay1 = summarizeSessions(sessOf(days), L);
+    const nUsedReads = sess.reduce((s, x) => s + x.used.length, 0);
+    const singleSess = sess.filter((x) => x.single).length;
+    const bothDays = kept.filter((d) => d.am && d.pm).length;
+    const checks = [
+      { id: 'days7', ok: days.length >= 7, text: '一共记了 ' + days.length + ' 天' + (days.length >= 7 ? '，够 7 天' : '，常见做法是连量 7 天') + '，算进平均的 ' + kept.length + ' 天' },
+      { id: 'minDays', ok: kept.length >= P.minDays, text: '你定的下结论门槛：至少 ' + P.minDays + ' 天' + (kept.length >= P.minDays ? '，够了' : '，还差 ' + (P.minDays - kept.length) + ' 天') },
+      { id: 'ampm', ok: bothDays === kept.length, text: '早晚都量的 ' + bothDays + ' / ' + kept.length + ' 天' },
+      { id: 'twice', ok: singleSess === 0, text: singleSess === 0 ? '每次都量了不止一遍' : '有 ' + singleSess + ' 次只量了一遍（每次量两遍、隔一分钟更稳）' },
+      { id: 'day1', ok: P.dropDay1 || days.length < 2, text: P.dropDay1 ? '第一天（' + days[0].label + '）没算进去' : '第一天也算进去了（刚开始量常常偏高）' },
+    ];
+    const R = { P, L, days, kept, sess, all, am, pm, verdict, stamp: STAMP[verdict], first, hi, lo, nReads: reads.length, nUsedReads, overReads,
+      overSess, withDay1, checks, ampmDiff: am && pm ? { s: am.s - pm.s, d: am.d - pm.d } : null };
+    R.summary = summaryOf(R); R.facts = factsOf(R);
+    return R;
+  }
+  const sesTxt = (k) => (k === 'am' ? '早上' : '晚上');
+  function side(o, L) { return o.above ? '在参考线 ' + bpi(L.s, L.d) + ' 上面' : '在参考线 ' + bpi(L.s, L.d) + ' 下面'; }
+  function readTxt(r) { return bpi(r.s, r.d); }
+  function readWhere(R, r) {
+    const same = R.P.reads.filter((x) => x.key === r.key && x.ses === r.ses).sort((a, b) => a.order - b.order);
+    const i = same.indexOf(r);
+    return r.label + ' ' + sesTxt(r.ses) + (same.length > 1 ? '第' + ['一', '二', '三', '四', '五', '六', '七', '八', '九', '十'][Math.min(i, 9)] + '遍' : '');
+  }
+  function summaryOf(R) {
+    const a = R.all, L = R.L;
+    const head = (R.P.dropDay1 ? '去掉第一天，' : '') + R.kept.length + ' 天 ' + a.n + ' 次的平均是 ' + bp(a.s, a.d) + '，' + side(a, L);
+    const tail = { over: '，粗估区间也整个在线上。', under: '，粗估区间也整个在线下。',
+      near: a.ci ? '，但粗估区间跨着线，再量几天才说得清。' : '，次数太少给不了区间，再量几天。',
+      few: '；不过只有 ' + R.kept.length + ' 天，不到你定的 ' + R.P.minDays + ' 天，先别下结论。' }[R.verdict];
+    const hiAbove = above(R.hi.s, R.hi.d, L);
+    return head + tail + '最高的那一下 ' + readTxt(R.hi) + '（' + readWhere(R, R.hi) + '）' + (hiAbove === a.above ? '，和平均同一边。' : '，单看它会得出相反的结论。');
+  }
+  function factsOf(R) {
+    const a = R.all, L = R.L, F = [];
+    if (a.ci) F.push('粗估区间：高压 ' + f1(a.ci.s[0]) + '–' + f1(a.ci.s[1]) + '，低压 ' + f1(a.ci.d[0]) + '–' + f1(a.ci.d[1]) + '（把每次当成独立的一份、t 值 ' + fmt(a.t, 3) + '，只是粗估）');
+    F.push('单遍读数 ' + R.nReads + ' 遍里有 ' + R.overReads + ' 遍到了参考线；算进平均的 ' + a.n + ' 次里有 ' + R.overSess + ' 次的平均到了线');
+    const fAbove = above(R.first.s, R.first.d, L);
+    F.push('第一遍 ' + readTxt(R.first) + '（' + readWhere(R, R.first) + '）' + (fAbove ? '到了线' : '没到线') + '，最低一遍 ' + readTxt(R.lo) + '（' + readWhere(R, R.lo) + '）');
+    if (R.withDay1) F.push('第一天也算进去的话：' + R.days.length + ' 天平均 ' + bp(R.withDay1.s, R.withDay1.d) + '，' + side(R.withDay1, L));
+    if (R.am && R.pm) F.push('早上平均 ' + bp(R.am.s, R.am.d) + '（' + R.am.n + ' 次），晚上平均 ' + bp(R.pm.s, R.pm.d) + '（' + R.pm.n + ' 次），高压早上' + (R.ampmDiff.s >= 0 ? '高 ' : '低 ') + f1(Math.abs(R.ampmDiff.s)));
+    else F.push('只有' + (R.am ? '早上' : '晚上') + '的记录，早晚没法对照');
+    if (a.hr != null) F.push('心率平均 ' + f1(a.hr));
+    if (R.P.dropFirst) { const k = R.sess.filter((x) => x.firstDropped).length; F.push('每次的第一遍不算：' + k + ' 次去掉了第一遍，只量一遍的 ' + R.sess.filter((x) => x.single).length + ' 次照算'); }
+    return F;
+  }
+  function calculate(inp) { return core(parse(inp)); }
+
+  /* ── 可代回的建议 ── */
+  function brief(R) { return '平均 ' + bp(R.all.s, R.all.d) + '，' + (R.all.above ? '线上' : '线下') + '，「' + R.stamp + '」'; }
+  function suggestions(inp, R) {
+    const out = [];
+    const tryOne = (id, patch, label) => {
+      const apply = Object.assign({}, inp, patch);
+      try { const R2 = calculate(apply); out.push({ id, text: label + '：' + brief(R2), apply, R2 }); } catch (e) { /* 改了也算不出就不给 */ }
+    };
+    if (R.days.length >= 2) tryOne('day1', { dropDay1: R.P.dropDay1 ? '0' : '1' }, R.P.dropDay1 ? '把第一天也算进去' : '第一天不作数');
+    if (R.sess.some((x) => x.reads.length >= 2)) tryOne('first', { dropFirst: R.P.dropFirst ? '0' : '1' }, R.P.dropFirst ? '每次的第一遍也算' : '每次的第一遍不算');
+    const alt = R.L.s === 130 && R.L.d === 80 ? '135/85' : '130/80';
+    if (bpi(R.L.s, R.L.d) !== alt) tryOne('line', { line: alt }, '参考线换成 ' + alt);
+    return out;
+  }
+
+  /* ── 导出 ── */
+  function csvEsc(s) { s = String(s); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }
+  function toCSV(R, stamp) {
+    const L = ['别只信那一下 生成时间 ' + stamp + ' 参考线 ' + bpi(R.L.s, R.L.d) + ' 平均 ' + bp(R.all.s, R.all.d) + ' ' + R.stamp];
+    L.push(['日期', '早晚', '第几遍', '高压', '低压', '心率', '这遍算不算', '这次平均'].join(','));
+    R.days.forEach((d) => ['am', 'pm'].forEach((k) => {
+      const x = d[k]; if (!x) return;
+      x.reads.forEach((r, i) => {
+        const used = !d.dropped && x.used.indexOf(r) >= 0;
+        L.push([d.label, sesTxt(k), i + 1, r.s, r.d, r.hr == null ? '' : r.hr, used ? '算' : d.dropped ? '不算（第一天）' : '不算（第一遍）', i === 0 ? bp(x.s, x.d) : ''].map(csvEsc).join(','));
+      });
+    }));
+    return L.join('\n') + '\n';
+  }
+  function toMD(R, stamp, sg) {
+    const L = ['# 别只信那一下', '', '生成时间：' + stamp + '　参考线 ' + bpi(R.L.s, R.L.d), '', '**' + R.summary + '**', ''];
+    R.facts.forEach((f) => L.push('- ' + f));
+    L.push('', '## 每天', '', '| 日期 | 早上 | 晚上 | 备注 |', '|---|---|---|---|');
+    R.days.forEach((d) => L.push('| ' + d.label + ' | ' + (d.am ? bp(d.am.s, d.am.d) + '（' + d.am.reads.length + ' 遍）' : '—') + ' | ' + (d.pm ? bp(d.pm.s, d.pm.d) + '（' + d.pm.reads.length + ' 遍）' : '—') + ' | ' + (d.dropped ? '不作数' : '') + ' |'));
+    L.push('', '## 记录够不够', '');
+    R.checks.forEach((c) => L.push('- ' + (c.ok ? '[x] ' : '[ ] ') + c.text));
+    if (sg && sg.length) { L.push('', '## 换个算法', ''); sg.forEach((s) => L.push('- ' + s.text)); }
+    L.push('', '这只是把自己记的数算清楚，不是诊断；参考线以医生说的为准。读数很高或身体不舒服，直接找医生。默认例子是虚构的。');
+    return L.join('\n') + '\n';
+  }
+
+  const DEFAULT = {
+    data: [
+      '11-18 早 152/96/84 146/93/80',
+      '11-18 晚 144/90/78 139/88/76',
+      '11-19 早 138/87/74 134/85/72',
+      '11-19 晚 131/82/71 128/80/70',
+      '11-20 早 136/86/73 133/84/72',
+      '11-20 晚 129/81/70 127/80/69',
+      '11-21 早 137/88/75 132/85/73',
+      '11-21 晚 130/80/70 128/79/68',
+      '11-22 早 134/85/72 131/83/71',
+      '11-22 晚 128/79/69 126/78/68',
+      '11-23 早 139/89/76 135/86/74',
+      '11-23 晚 132/82/71 129/80/70',
+      '11-24 早 135/86/73 132/84/72',
+      '11-24 晚 127/79/69 125/77/68',
+    ].join('\n'),
+    line: '135/85', dropDay1: '1', dropFirst: '0', minDays: '3',
+  };
+  const PRESETS = [
+    ['默认：量了一周', DEFAULT],
+    ['才量了两天', { data: '11-23 早 141/90 137/88\n11-23 晚 133/84 130/83\n11-24 早 138/88 134/86', line: '135/85', dropDay1: '0', dropFirst: '0', minDays: '3' }],
+    ['一直偏高', { data: '11-18 早 150/95 147/94\n11-18 晚 144/92 142/90\n11-19 早 148/94 145/92\n11-19 晚 141/90 139/89\n11-20 早 147/93 146/92\n11-20 晚 143/91 140/89\n11-21 早 149/95 145/93\n11-21 晚 142/90 141/90\n11-22 早 146/93 144/92\n11-22 晚 140/89 139/88', line: '135/85', dropDay1: '1', dropFirst: '0', minDays: '3' }],
+    ['只量早上、每次一遍', { data: '11-18 早 142/88\n11-19 早 136/86\n11-20 早 131/83\n11-21 早 139/87\n11-22 早 128/81\n11-23 早 134/84\n11-24 早 137/85', line: '135/85', dropDay1: '0', dropFirst: '0', minDays: '3' }],
+  ];
+  const api = { DEFAULT, PRESETS, KEYS, parse, calculate, suggestions, toCSV, toMD, tidy, lnGamma, betaI, tCdf, tInv, mean, sd, r1, fmt, f1, bp, bpi, above, STAMP, sesTxt };
+  if (typeof module === 'object' && module.exports) module.exports = api; else root.AppCore = api;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+  </script>
+  <script>
+/* 别只信那一下 · 界面层 */
+(function () {
+  'use strict';
+  const C = window.AppCore;
+  const KEY = 'not-just-once:v1';
+  const NAME = '别只信那一下';
+  const copy = (o) => JSON.parse(JSON.stringify(o));
+  const DEFAULT = C.DEFAULT, PRESETS = C.PRESETS, KEYS = C.KEYS;
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const FF = '"PingFang SC","Microsoft YaHei",sans-serif';
+  let state = copy(DEFAULT);
+  let last = null;
+
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { /* 隐私模式忽略 */ } }
+  function load() {
+    try {
+      const o = JSON.parse(localStorage.getItem(KEY) || 'null');
+      if (!o || typeof o !== 'object' || Array.isArray(o)) return null;
+      const s = {};
+      for (const k of KEYS) { if (o[k] == null || typeof o[k] === 'object') return null; s[k] = String(o[k]).slice(0, 40000); }
+      if (!/^[01]$/.test(s.dropDay1) || !/^[01]$/.test(s.dropFirst)) return null;
+      return s;
+    } catch (e) { return null; }
+  }
+  function fill() { KEYS.forEach((k) => { $(k).value = state[k]; }); }
+
+  /* 每一遍画成点：上半高压、下半低压；x = 第几次（按日期、早在前） */
+  function drawPlot(g, R, X, Y, W, H, fs) {
+    const cols = [];
+    R.days.forEach((d) => ['am', 'pm'].forEach((k) => { if (d[k]) cols.push({ d, k, x: d[k] }); }));
+    const n = cols.length, gap = 30 * fs, ph = (H - gap - 26 * fs) / 2, padL = 44 * fs;
+    const panels = [['s', '高压', R.L.s, Y], ['d', '低压', R.L.d, Y + ph + gap]];
+    const cw = (W - padL) / Math.max(n, 1);
+    panels.forEach(([f, lab, line, py]) => {
+      const vals = R.P.reads.map((r) => r[f]).concat([line]);
+      let lo = Math.min(...vals), hi = Math.max(...vals);
+      const span = Math.max(10, hi - lo); lo = Math.floor((lo - span * 0.12) / 5) * 5; hi = Math.ceil((hi + span * 0.12) / 5) * 5;
+      const yv = (v) => py + ph - (v - lo) / (hi - lo) * ph;
+      g.fillStyle = '#fbf8f2'; g.fillRect(X + padL, py, W - padL, ph);
+      g.strokeStyle = '#ece4d6'; g.lineWidth = 1; g.font = (12 * fs) + 'px ' + FF; g.fillStyle = '#857a6d'; g.textAlign = 'right';
+      const step = [5, 10, 20, 25, 50, 100].find((st) => st / (hi - lo) * ph >= 22 * fs) || 100;
+      for (let v = Math.ceil(lo / step) * step; v <= hi; v += step) { const y = yv(v); g.beginPath(); g.moveTo(X + padL, y); g.lineTo(X + W, y); g.stroke(); if (y > py + 6 * fs && y < py + ph - 2) g.fillText(String(v), X + padL - 6 * fs, y + 4 * fs); }
+      g.textAlign = 'left';
+      /* 参考线 */
+      g.strokeStyle = '#b3412f'; g.lineWidth = 2 * fs; g.setLineDash([6 * fs, 4 * fs]); g.beginPath(); g.moveTo(X + padL, yv(line)); g.lineTo(X + W, yv(line)); g.stroke(); g.setLineDash([]);
+      g.fillStyle = '#b3412f'; g.font = (12 * fs) + 'px ' + FF; { const t = '参考线 ' + line; g.fillText(t, X + W - g.measureText(t).width - 4 * fs, yv(line) - 5 * fs); }
+      /* 平均线 */
+      const av = f === 's' ? R.all.s : R.all.d;
+      g.strokeStyle = '#7a3b2e'; g.lineWidth = 1.5 * fs; g.beginPath(); g.moveTo(X + padL, yv(av)); g.lineTo(X + W, yv(av)); g.stroke();
+      g.fillStyle = '#7a3b2e'; { const t = '平均 ' + C.f1(av); g.fillText(t, X + padL + 50 * fs, yv(av) + (av >= line ? -5 : 14) * fs); }
+      cols.forEach((c, i) => {
+        const cx = X + padL + cw * (i + 0.5), dropped = c.d.dropped;
+        c.x.reads.forEach((r) => {
+          const used = !dropped && c.x.used.indexOf(r) >= 0;
+          g.beginPath(); g.arc(cx, yv(r[f]), 3.2 * fs, 0, 7);
+          if (used) { g.fillStyle = '#c9b8a3'; g.fill(); } else { g.strokeStyle = '#9a8f82'; g.lineWidth = 1.2 * fs; g.stroke(); }
+        });
+        const mv = c.x[f];
+        g.beginPath(); g.arc(cx, yv(mv), 5.5 * fs, 0, 7);
+        if (dropped) { g.strokeStyle = '#9a8f82'; g.lineWidth = 2 * fs; g.stroke(); } else { g.fillStyle = '#7a3b2e'; g.fill(); }
+      });
+      g.font = 'bold ' + (13 * fs) + 'px ' + FF; { const tw = g.measureText(lab).width; g.fillStyle = 'rgba(255,253,248,0.92)'; g.fillRect(X + padL + 2 * fs, py + 2 * fs, tw + 8 * fs, 19 * fs); g.fillStyle = '#2a2622'; g.fillText(lab, X + padL + 6 * fs, py + 16 * fs); }
+      /* 最高那一下标出来 */
+      if (f === 's') {
+        const hc = cols.findIndex((c) => c.x.reads.indexOf(R.hi) >= 0);
+        if (hc >= 0) {
+          const cx = X + padL + cw * (hc + 0.5), y = yv(R.hi.s);
+          g.strokeStyle = '#b3412f'; g.lineWidth = 2 * fs; g.beginPath(); g.arc(cx, y, 8 * fs, 0, 7); g.stroke();
+          g.fillStyle = '#b3412f'; g.font = 'bold ' + (12 * fs) + 'px ' + FF;
+          const t = '那一下 ' + R.hi.s + '/' + R.hi.d, tw = g.measureText(t).width;
+          const lx = cx + 11 * fs + tw > X + W - 2 ? cx - 11 * fs - tw : cx + 11 * fs; g.fillText(t, Math.max(lx, X + padL + 2), Math.max(y + 4 * fs, py + 32 * fs));
+        }
+      }
+    });
+    /* 横轴：日期（放不下就隔几个写） */
+    g.fillStyle = '#6a6157'; g.font = (11 * fs) + 'px ' + FF; g.textAlign = 'center';
+    const ay = Y + H - 6 * fs; let lastEnd = -1e9;
+    cols.forEach((c, i) => {
+      if (c.k !== 'am' && c.d.am) return;
+      const cx = X + padL + cw * (i + (c.k === 'am' && c.d.pm ? 1 : 0.5)), t = c.d.label.slice(-5), tw = g.measureText(t).width;
+      if (cx - tw / 2 < lastEnd + 6 * fs || cx + tw / 2 > X + W + 2) return;
+      g.fillText(t, cx, ay); lastEnd = cx + tw / 2;
+    });
+    g.textAlign = 'left';
+  }
+  function renderPlot(R) {
+    const cv = $('plot'), w = Math.max(300, Math.min(960, cv.parentNode.clientWidth - 28 || 960)), h = Math.round(w * (w < 500 ? 0.9 : 0.55));
+    const dpr = window.devicePixelRatio || 1;
+    cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); cv.style.height = h + 'px';
+    const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h);
+    drawPlot(g, R, 0, 0, w, h, 1);
+  }
+  function renderBook(R) {
+    $('book').innerHTML = R.days.map((d) => '<div class="day' + (d.dropped ? ' dropped' : '') + '"><div class="dl0"><span>' + esc(d.label) + '</span>' + (d.dropped ? '<em>不作数</em>' : '') + '</div>' +
+      ['am', 'pm'].map((k) => { const x = d[k]; if (!x) return '<div class="ses"><span>' + C.sesTxt(k).slice(0, 1) + '</span><small>没量</small></div>';
+        const up = C.above(C.r1(x.s), C.r1(x.d), R.L);
+        return '<div class="ses"><span>' + C.sesTxt(k).slice(0, 1) + '</span><b class="' + (up ? 'up' : 'down') + '">' + C.bp(x.s, x.d) + '</b><small>' + x.reads.length + '遍</small></div>'; }).join('') + '</div>').join('');
+  }
+  function sugList(sg) {
+    const box = $('sugs'); box.innerHTML = '';
+    sg.forEach((x) => {
+      const d = document.createElement('div'); d.className = 'sug';
+      d.innerHTML = '<span>' + esc(x.text) + '</span>';
+      const bt = document.createElement('button'); bt.textContent = '照这样算'; bt.dataset.sug = x.id;
+      bt.addEventListener('click', () => { state = copy(x.apply); fill(); run(); });
+      d.appendChild(bt); box.appendChild(d);
+    });
+    $('sugCard').style.display = sg.length ? '' : 'none';
+  }
+  function run() {
+    [].forEach.call(document.querySelectorAll('.bad'), (e) => e.classList.remove('bad'));
+    try {
+      const R = C.calculate(state);
+      const sg = C.suggestions(state, R);
+      $('error').style.display = 'none'; $('out').style.display = '';
+      const hiUp = C.above(R.hi.s, R.hi.d, R.L);
+      $('oneV').textContent = R.hi.s + '/' + R.hi.d; $('oneV').className = 'v ' + (hiUp ? 'up' : 'down');
+      $('oneW').textContent = R.hi.label + ' ' + C.sesTxt(R.hi.ses) + ' · ' + (hiUp ? '到了线' : '没到线');
+      $('avgV').textContent = C.bp(R.all.s, R.all.d); $('avgV').className = 'v ' + (R.all.above ? 'up' : 'down');
+      $('avgW').textContent = R.kept.length + ' 天 ' + R.all.n + ' 次 · ' + (R.all.above ? '在线上' : '在线下') + ' · 参考线 ' + C.bpi(R.L.s, R.L.d);
+      $('stamp').textContent = R.stamp; $('stamp').className = 'stamp ' + R.verdict;
+      $('sumTxt').textContent = R.summary;
+      $('facts').innerHTML = R.facts.map((f) => '<li>' + esc(f) + '</li>').join('');
+      $('checks').innerHTML = R.checks.map((c) => '<li class="' + (c.ok ? 'ok' : '') + '">' + esc(c.text) + '</li>').join('');
+      last = { r: R, sg };
+      renderPlot(R); renderBook(R); sugList(sg);
+    } catch (e) {
+      last = null;
+      if (e.field) { const el = $(e.field); if (el) el.classList.add('bad'); }
+      $('error').textContent = '算不了：' + e.message; $('error').style.display = 'block';
+      $('out').style.display = 'none';
+    }
+    save();
+  }
+
+  /* ── 导出 ── */
+  function stamp() { const d = new Date(), z = (n) => String(n).padStart(2, '0'); return d.getFullYear() + '-' + z(d.getMonth() + 1) + '-' + z(d.getDate()) + ' ' + z(d.getHours()) + ':' + z(d.getMinutes()); }
+  function download(name, blob) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000); }
+  function wrap(g, t, w) {
+    const NOHEAD = '，。、；：！？）」』%·→｜';
+    const out = []; let line = [];
+    const toks = String(t).match(/[0-9][0-9.\/–-]*(\s?(天|次|遍))?|[A-Za-z_][A-Za-z0-9_.\-]*|[\s\S]/g) || [];
+    const width = (a) => g.measureText(a.join('')).width;
+    for (const tk of toks) {
+      if (line.length && width(line.concat([tk])) > w) {
+        let carry = [tk];
+        while (line.length > 1 && (NOHEAD.indexOf(carry[0][0]) >= 0 || '（「『'.indexOf(line[line.length - 1]) >= 0)) carry.unshift(line.pop());
+        out.push(line.join(''));
+        line = carry; if (/^\s+$/.test(line[0])) line.shift();
+      } else line.push(tk);
+    }
+    if (line.length) out.push(line.join('')); return out;
+  }
+  function fitText(g, t, w) { let s = String(t); if (g.measureText(s).width <= w) return s; while (s.length > 1 && g.measureText(s + '…').width > w) s = s.slice(0, -1); return s + '…'; }
+  function drawPNG(Lx) {
+    const R = Lx.r;
+    const Wd = 1080, H = 1350, X = 64, TW = 952;
+    const cv = document.createElement('canvas'); cv.width = Wd; cv.height = H;
+    const g = cv.getContext('2d');
+    g.fillStyle = '#f6f2ea'; g.fillRect(0, 0, Wd, H);
+    g.fillStyle = '#fffdf8'; g.fillRect(32, 32, Wd - 64, H - 64);
+    g.fillStyle = '#7a3b2e'; g.fillRect(32, 32, Wd - 64, 10);
+    g.fillStyle = '#857a6d'; g.font = '24px ' + FF;
+    g.fillText(fitText(g, NAME + ' · ' + R.kept.length + ' 天 ' + R.all.n + ' 次 · 参考线 ' + C.bpi(R.L.s, R.L.d), TW - 200), X, 96);
+    g.save(); g.translate(X + TW - 104, 88); g.rotate(-0.06);
+    const col = R.verdict === 'over' ? '#b3412f' : R.verdict === 'under' ? '#2f6b4f' : '#a5741d';
+    g.strokeStyle = g.fillStyle = col; g.lineWidth = 4; g.strokeRect(-96, -30, 192, 52);
+    g.font = 'bold 28px ' + FF; g.textAlign = 'center'; g.fillText(R.stamp, 0, 6); g.restore();
+    /* 两个大数 */
+    const hiUp = C.above(R.hi.s, R.hi.d, R.L);
+    const box = (x, w, k, v, sub, up, solid) => {
+      g.fillStyle = solid ? '#ffffff' : '#f3ece2'; g.fillRect(x, 128, w, 168);
+      g.strokeStyle = solid ? '#7a3b2e' : '#b9a58c'; g.lineWidth = solid ? 3 : 2; if (!solid) g.setLineDash([8, 5]); g.strokeRect(x, 128, w, 168); g.setLineDash([]);
+      g.fillStyle = '#6a6157'; g.font = '22px ' + FF; g.fillText(k, x + 20, 166);
+      g.fillStyle = up ? '#b3412f' : '#2f6b4f'; g.font = 'bold 64px ' + FF; g.fillText(fitText(g, v, w - 40), x + 20, 240);
+      g.fillStyle = '#2a2622'; g.font = '20px ' + FF; g.fillText(fitText(g, sub, w - 40), x + 20, 278);
+    };
+    box(X, 456, '只看最高那一下', R.hi.s + '/' + R.hi.d, R.hi.label + ' ' + C.sesTxt(R.hi.ses) + ' · ' + (hiUp ? '到了线' : '没到线'), hiUp, false);
+    box(X + 496, 456, '这几天的平均', C.bp(R.all.s, R.all.d), R.kept.length + ' 天 ' + R.all.n + ' 次 · ' + (R.all.above ? '在线上' : '在线下'), R.all.above, true);
+    let y = 344;
+    g.fillStyle = '#2a2622'; g.font = 'bold 26px ' + FF;
+    let sl = wrap(g, R.summary, TW); if (sl.length > 4) { g.font = 'bold 22px ' + FF; sl = wrap(g, R.summary, TW); }
+    if (sl.length > 5) { sl = sl.slice(0, 5); sl[4] = fitText(g, sl[4] + '……', TW - 10); }
+    sl.forEach((l) => { g.fillText(l, X, y); y += 36; });
+    y += 10;
+    drawPlot(g, R, X, y, TW, 450, 1.25);
+    y += 450 + 44;
+    g.font = '20px ' + FF; g.fillStyle = '#2a2622';
+    const items = R.facts.concat(R.checks.filter((c) => !c.ok).map((c) => '还差：' + c.text)).concat(Lx.sg.map((q) => '换个算法：' + q.text));
+    let shown = 0;
+    for (const f of items) {
+      const ls = wrap(g, '· ' + f, TW);
+      if (y + (ls.length - 1) * 29 > H - 160) break;
+      ls.forEach((l) => { g.fillText(l, X, y); y += 29; }); y += 5; shown++;
+    }
+    if (shown < items.length) { g.fillStyle = '#857a6d'; g.font = '18px ' + FF; g.fillText('…… 还有 ' + (items.length - shown) + ' 条写不下，见页面或 Markdown 导出', X, Math.min(y + 2, H - 124)); }
+    g.fillStyle = '#857a6d'; g.font = '18px ' + FF;
+    ['只是把自己记的数算清楚，不是诊断；参考线以医生说的为准。', '读数很高或身体不舒服，直接找医生。默认例子是虚构的。'].forEach((l, i) => g.fillText(l, X, H - 82 + i * 27));
+    return Promise.resolve(cv);
+  }
+  function backup() {
+    const R = last.r;
+    return { app: NAME, version: 1, savedAt: stamp(), input: copy(state), result: { summary: R.summary, verdict: R.verdict, stamp: R.stamp,
+      line: R.L, days: R.days.length, keptDays: R.kept.length, sessions: R.all.n, reads: R.nReads,
+      mean: { s: R.all.s, d: R.all.d, hr: R.all.hr }, ci: R.all.ci, am: R.am && { s: R.am.s, d: R.am.d, n: R.am.n }, pm: R.pm && { s: R.pm.s, d: R.pm.d, n: R.pm.n },
+      highest: { s: R.hi.s, d: R.hi.d, date: R.hi.label, ses: R.hi.ses }, first: { s: R.first.s, d: R.first.d },
+      overReads: R.overReads, overSessions: R.overSess, withDay1: R.withDay1 && { s: R.withDay1.s, d: R.withDay1.d },
+      checks: R.checks.map((c) => ({ id: c.id, ok: c.ok, text: c.text })) } };
+  }
+  function init() {
+    KEYS.forEach((k) => { const el = $(k); el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', () => { state[k] = el.value; run(); }); });
+    PRESETS.forEach((p) => {
+      const b = document.createElement('button'); b.className = 'ghost'; b.textContent = p[0];
+      b.addEventListener('click', () => { state = copy(p[1]); fill(); run(); });
+      $('presets').appendChild(b);
+    });
+    $('reset').addEventListener('click', () => { state = copy(DEFAULT); fill(); run(); });
+    $('dlCSV').addEventListener('click', () => { if (last) download(NAME + '.csv', new Blob(['\ufeff' + C.toCSV(last.r, stamp())], { type: 'text/csv;charset=utf-8' })); });
+    $('dlMD').addEventListener('click', () => { if (last) download(NAME + '.md', new Blob([C.toMD(last.r, stamp(), last.sg)], { type: 'text/markdown;charset=utf-8' })); });
+    $('dlJSON').addEventListener('click', () => { if (last) download(NAME + '-备份.json', new Blob([JSON.stringify(backup(), null, 2)], { type: 'application/json' })); });
+    $('dlPNG').addEventListener('click', () => { if (last) drawPNG(last).then((cv) => cv.toBlob((b) => download(NAME + '-1080x1350.png', b), 'image/png')); });
+    let rt = null; window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { if (last) renderPlot(last.r); }, 150); });
+    state = load() || copy(DEFAULT);
+    fill(); run();
+    window.__ex = { last: () => last, state: () => state, presets: PRESETS, DEFAULT, drawPNG, backup };
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+})();
+
+  </script>
+</body>
+</html>
